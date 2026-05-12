@@ -386,8 +386,8 @@ select:focus {
 
 input::placeholder,
 textarea::placeholder {
-  color: rgba(55, 65, 81, 0.48);
-  font-weight: 400;
+  color: var(--muted);
+  font-weight: 500;
 }
 
 .upload-zone {
