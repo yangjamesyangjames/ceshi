@@ -30,6 +30,25 @@
 
 其中“图”可以先填写图片链接，也可以留空。中转接口部署好后，在知识库页点击“同步飞书”，填入接口地址即可同步。
 
+## 飞书 CLI 同步
+
+当前仓库也支持通过飞书 CLI 把电子表格同步成静态知识库文件，适合个人使用：
+
+```bash
+node sync-feishu.mjs
+```
+
+脚本会读取 Wiki 页面“设计意见”背后的电子表格，并生成 `knowledge.js`。网页打开时会自动加载 `knowledge.js` 里的意见。
+
+更新飞书表格后，如果要发布到 GitHub Pages，执行：
+
+```bash
+node sync-feishu.mjs
+git add knowledge.js
+git commit -m "Sync Feishu knowledge"
+git push origin main
+```
+
 ## 当前版本说明
 
 当前版本是纯前端本地工具，数据保存在浏览器 `localStorage` 中，不会上传服务器。图片会作为本地数据保存，适合做知识库原型和团队内部流程验证。

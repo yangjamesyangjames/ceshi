@@ -312,6 +312,22 @@ function normalizeFeishuRules(payload) {
     .filter((rule) => rule.content);
 }
 
+function mergeRules(nextRules) {
+  const existingKeys = new Set(state.rules.map((rule) => `${getRuleLeader(rule)}::${getRuleContent(rule)}`));
+  const uniqueRules = nextRules.filter((rule) => !existingKeys.has(`${getRuleLeader(rule)}::${getRuleContent(rule)}`));
+  state.rules = [...uniqueRules, ...state.rules];
+  return uniqueRules.length;
+}
+
+function loadGeneratedKnowledge() {
+  const generatedRules = Array.isArray(window.FEISHU_KNOWLEDGE_RULES) ? window.FEISHU_KNOWLEDGE_RULES : [];
+  if (!generatedRules.length) return;
+  const rules = normalizeFeishuRules(generatedRules);
+  const importedCount = mergeRules(rules);
+  if (importedCount > 0) saveState();
+  setFeishuStatus(`已加载飞书知识库 ${rules.length} 条，本次新增 ${importedCount} 条。`, "success");
+}
+
 function setFeishuStatus(text, status = "idle") {
   const node = $("#feishuSyncStatus");
   node.textContent = text;
@@ -488,13 +504,11 @@ async function syncFeishuRules() {
       return;
     }
 
-    const existingKeys = new Set(state.rules.map((rule) => `${getRuleLeader(rule)}::${getRuleContent(rule)}`));
-    const uniqueRules = nextRules.filter((rule) => !existingKeys.has(`${getRuleLeader(rule)}::${getRuleContent(rule)}`));
-    state.rules = [...uniqueRules, ...state.rules];
+    const importedCount = mergeRules(nextRules);
     saveState();
     refresh();
     closeFeishuModal();
-    setFeishuStatus(`已同步 ${uniqueRules.length} 条新意见，飞书表格共读取 ${nextRules.length} 条。`, "success");
+    setFeishuStatus(`已同步 ${importedCount} 条新意见，飞书表格共读取 ${nextRules.length} 条。`, "success");
   } catch (error) {
     setFeishuStatus(`同步失败：${error.message}。请检查中转接口和飞书权限。`, "error");
   } finally {
@@ -706,6 +720,7 @@ function bounceUploadZone(input) {
 bindEvents();
 loadState();
 loadConfig();
+loadGeneratedKnowledge();
 refresh();
 setReviewReady(false);
 switchView("knowledgeView");
