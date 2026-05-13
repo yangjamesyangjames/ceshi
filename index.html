@@ -119,9 +119,12 @@
                 </div>
                 <div class="panel-actions">
                   <button class="ghost-button small-button" id="loadSampleBtn">载入示意</button>
+                  <button class="ghost-button small-button" id="openFeishuModalBtn" type="button">同步飞书</button>
                   <button class="primary-button small-button" id="openRuleModalBtn">新增审核意见</button>
                 </div>
               </div>
+
+              <p class="sync-status" id="feishuSyncStatus">可从飞书电子表格同步“图 / 意见内容 / 姓名”。</p>
 
               <div class="rule-table" id="ruleList"></div>
             </div>
@@ -194,6 +197,32 @@
             </label>
             <button class="ghost-button full" id="bulkImportBtn" type="button">批量保存</button>
           </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal-backdrop is-hidden" id="feishuModal" role="dialog" aria-modal="true" aria-labelledby="feishuModalTitle">
+      <div class="modal-card compact-modal">
+        <div class="panel-heading">
+          <div>
+            <h3 id="feishuModalTitle">同步飞书表格</h3>
+            <p>填写安全中转接口地址后，读取电子表格里的图、意见内容、姓名。</p>
+          </div>
+          <button class="icon-button" id="closeFeishuModalBtn" type="button" aria-label="关闭弹窗">×</button>
+        </div>
+
+        <form id="feishuForm">
+          <label>
+            中转接口地址
+            <input id="feishuEndpoint" type="url" placeholder="例如：https://你的接口域名.workers.dev" required />
+          </label>
+
+          <div class="helper-box">
+            <strong>表格列名</strong>
+            <span>第一行建议使用：图、意见内容、姓名。图可以先填图片链接，也可以留空。</span>
+          </div>
+
+          <button class="primary-button full" id="syncFeishuBtn" type="submit">保存并同步</button>
         </form>
       </div>
     </div>

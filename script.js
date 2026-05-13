@@ -1,10 +1,12 @@
 const STORAGE_KEY = "design-review-assistant-v1";
+const CONFIG_KEY = "design-review-assistant-config-v1";
 
 const state = {
   rules: [],
   history: [],
   draftImages: [],
   ruleImages: [],
+  feishuEndpoint: "",
   analysisTimer: null,
   analysisStepTimer: null,
   uploadTimer: null,
@@ -61,6 +63,14 @@ function saveState() {
   }
 }
 
+function saveConfig() {
+  try {
+    window.localStorage.setItem(CONFIG_KEY, JSON.stringify({ feishuEndpoint: state.feishuEndpoint }));
+  } catch {
+    // Keep the app usable if storage is unavailable.
+  }
+}
+
 function loadState() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -71,6 +81,17 @@ function loadState() {
   } catch {
     state.rules = [];
     state.history = [];
+  }
+}
+
+function loadConfig() {
+  try {
+    const raw = window.localStorage.getItem(CONFIG_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    state.feishuEndpoint = typeof saved.feishuEndpoint === "string" ? saved.feishuEndpoint : "";
+  } catch {
+    state.feishuEndpoint = "";
   }
 }
 
@@ -259,6 +280,44 @@ function renderRuleRow(rule) {
   `;
 }
 
+function normalizeFeishuValue(value) {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number") return String(value).trim();
+  if (Array.isArray(value)) return value.map(normalizeFeishuValue).filter(Boolean).join(" ").trim();
+  if (typeof value === "object") {
+    if (value.text) return normalizeFeishuValue(value.text);
+    if (value.link) return normalizeFeishuValue(value.link);
+    if (value.url) return normalizeFeishuValue(value.url);
+    if (value.name) return normalizeFeishuValue(value.name);
+  }
+  return "";
+}
+
+function normalizeFeishuRules(payload) {
+  const rows = Array.isArray(payload) ? payload : payload.rules || payload.data || [];
+  return rows
+    .map((row) => {
+      const image = normalizeFeishuValue(row.image || row.images || row["图"] || row["图片"] || row["图片链接"]);
+      const content = normalizeFeishuValue(row.content || row.opinion || row["意见内容"] || row["审核意见"] || row["反馈意见"]);
+      const leader = normalizeFeishuValue(row.leader || row.name || row["姓名"] || row["领导姓名"] || row["提出人"]);
+      return {
+        id: createId(),
+        leader: leader || "未填写领导",
+        content,
+        images: image ? [image] : [],
+        createdAt: new Date().toISOString(),
+        source: "飞书表格",
+      };
+    })
+    .filter((rule) => rule.content);
+}
+
+function setFeishuStatus(text, status = "idle") {
+  const node = $("#feishuSyncStatus");
+  node.textContent = text;
+  node.dataset.status = status;
+}
+
 function renderDemoRuleRow() {
   return `
     <article class="rule-row demo-card">
@@ -390,6 +449,62 @@ function openRuleModal() {
 
 function closeRuleModal() {
   hideElement("#ruleModal");
+}
+
+function openFeishuModal() {
+  $("#feishuEndpoint").value = state.feishuEndpoint;
+  showElement("#feishuModal");
+  window.setTimeout(() => $("#feishuEndpoint").focus(), 40);
+}
+
+function closeFeishuModal() {
+  hideElement("#feishuModal");
+}
+
+async function syncFeishuRules() {
+  const endpoint = state.feishuEndpoint.trim();
+  if (!endpoint) {
+    openFeishuModal();
+    return;
+  }
+
+  const button = $("#syncFeishuBtn");
+  const openButton = $("#openFeishuModalBtn");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "同步中...";
+  }
+  openButton.disabled = true;
+  openButton.textContent = "同步中...";
+  setFeishuStatus("正在读取飞书表格...", "loading");
+
+  try {
+    const response = await fetch(endpoint, { method: "GET" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    const nextRules = normalizeFeishuRules(payload);
+    if (!nextRules.length) {
+      setFeishuStatus("没有从飞书表格读到可用意见，请检查列名和表格内容。", "error");
+      return;
+    }
+
+    const existingKeys = new Set(state.rules.map((rule) => `${getRuleLeader(rule)}::${getRuleContent(rule)}`));
+    const uniqueRules = nextRules.filter((rule) => !existingKeys.has(`${getRuleLeader(rule)}::${getRuleContent(rule)}`));
+    state.rules = [...uniqueRules, ...state.rules];
+    saveState();
+    refresh();
+    closeFeishuModal();
+    setFeishuStatus(`已同步 ${uniqueRules.length} 条新意见，飞书表格共读取 ${nextRules.length} 条。`, "success");
+  } catch (error) {
+    setFeishuStatus(`同步失败：${error.message}。请检查中转接口和飞书权限。`, "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "保存并同步";
+    }
+    openButton.disabled = false;
+    openButton.textContent = "同步飞书";
+  }
 }
 
 function startAnalysis(formData) {
@@ -545,6 +660,24 @@ function bindEvents() {
     if (event.target.id === "ruleModal") closeRuleModal();
   });
 
+  $("#openFeishuModalBtn").addEventListener("click", () => {
+    if (state.feishuEndpoint) {
+      syncFeishuRules();
+      return;
+    }
+    openFeishuModal();
+  });
+  $("#closeFeishuModalBtn").addEventListener("click", closeFeishuModal);
+  $("#feishuModal").addEventListener("click", (event) => {
+    if (event.target.id === "feishuModal") closeFeishuModal();
+  });
+  $("#feishuForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    state.feishuEndpoint = $("#feishuEndpoint").value.trim();
+    saveConfig();
+    syncFeishuRules();
+  });
+
   $("#copySuggestionBtn").addEventListener("click", async () => {
     const text = $("#suggestionBox").textContent.trim();
     if (!text) {
@@ -572,6 +705,7 @@ function bounceUploadZone(input) {
 
 bindEvents();
 loadState();
+loadConfig();
 refresh();
 setReviewReady(false);
 switchView("knowledgeView");
