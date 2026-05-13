@@ -270,8 +270,15 @@ button:active {
 }
 
 .review-form-heading {
+  position: relative;
   margin-bottom: 28px;
   text-align: center;
+}
+
+.review-form-heading .ghost-button {
+  position: absolute;
+  right: 0;
+  top: 8px;
 }
 
 .review-form-heading h3 {
@@ -317,10 +324,20 @@ button:active {
 }
 
 .panel-actions,
-.report-actions {
+.report-actions,
+.modal-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.modal-actions {
+  align-items: stretch;
+}
+
+.modal-actions .full {
+  width: auto;
+  flex: 1;
 }
 
 .panel-heading h3 {
@@ -1233,6 +1250,11 @@ progress::-webkit-progress-value {
 
   .panel {
     padding: 16px;
+  }
+
+  .review-form-heading .ghost-button {
+    position: static;
+    margin-top: 12px;
   }
 
   .review-layout {

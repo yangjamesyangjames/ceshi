@@ -49,6 +49,17 @@ git commit -m "Sync Feishu knowledge"
 git push origin main
 ```
 
+## 视觉 AI 审核接入
+
+如果要让系统真正读取上传的设计稿图片，需要把 `ai-review-worker.js` 部署成后端中转接口，并在接口平台配置环境变量：
+
+- `OPENAI_API_KEY`：OpenAI API Key
+- `OPENAI_MODEL`：可选，默认 `gpt-4.1-mini`
+
+部署完成后，在网页“设计稿审核”页点击“配置 AI”，填入 Worker 地址。之后点击“审核”时，网页会把上传图片、输入目标和知识库意见发送给 Worker，由视觉模型返回结构化审核报告。
+
+不要把 `OPENAI_API_KEY` 写进 `index.html`、`script.js` 或任何会发布到 GitHub Pages 的前端文件。
+
 ## 当前版本说明
 
 当前版本是纯前端本地工具，数据保存在浏览器 `localStorage` 中，不会上传服务器。图片会作为本地数据保存，适合做知识库原型和团队内部流程验证。

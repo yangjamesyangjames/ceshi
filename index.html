@@ -40,7 +40,10 @@
             <form class="review-form" id="reviewForm">
               <div class="review-form-heading">
                 <h3>上传设计稿</h3>
+                <button class="ghost-button small-button" id="openAiModalBtn" type="button">配置 AI</button>
               </div>
+
+              <p class="sync-status" id="aiReviewStatus">未配置视觉 AI 接口时，将使用本地知识库文字匹配。</p>
 
               <textarea id="brief" rows="6" placeholder="输入目标：如重点检查品牌露出、促销利益点、文案层级、合规风险。"></textarea>
 
@@ -223,6 +226,35 @@
           </div>
 
           <button class="primary-button full" id="syncFeishuBtn" type="submit">保存并同步</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal-backdrop is-hidden" id="aiModal" role="dialog" aria-modal="true" aria-labelledby="aiModalTitle">
+      <div class="modal-card compact-modal">
+        <div class="panel-heading">
+          <div>
+            <h3 id="aiModalTitle">配置视觉 AI 审核</h3>
+            <p>填写安全中转接口地址后，审核会读取上传图片并结合知识库输出报告。</p>
+          </div>
+          <button class="icon-button" id="closeAiModalBtn" type="button" aria-label="关闭弹窗">×</button>
+        </div>
+
+        <form id="aiForm">
+          <label>
+            AI 审核接口地址
+            <input id="aiReviewEndpoint" type="url" placeholder="例如：https://你的接口域名.workers.dev" required />
+          </label>
+
+          <div class="helper-box">
+            <strong>安全说明</strong>
+            <span>OpenAI API Key 只放在中转接口环境变量里，不要填写到网页或发到聊天里。</span>
+          </div>
+
+          <div class="modal-actions">
+            <button class="ghost-button full" id="clearAiEndpointBtn" type="button">清空配置</button>
+            <button class="primary-button full" type="submit">保存配置</button>
+          </div>
         </form>
       </div>
     </div>

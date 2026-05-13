@@ -7,6 +7,7 @@ const state = {
   draftImages: [],
   ruleImages: [],
   feishuEndpoint: "",
+  aiReviewEndpoint: "",
   analysisTimer: null,
   analysisStepTimer: null,
   uploadTimer: null,
@@ -65,7 +66,13 @@ function saveState() {
 
 function saveConfig() {
   try {
-    window.localStorage.setItem(CONFIG_KEY, JSON.stringify({ feishuEndpoint: state.feishuEndpoint }));
+    window.localStorage.setItem(
+      CONFIG_KEY,
+      JSON.stringify({
+        feishuEndpoint: state.feishuEndpoint,
+        aiReviewEndpoint: state.aiReviewEndpoint,
+      }),
+    );
   } catch {
     // Keep the app usable if storage is unavailable.
   }
@@ -90,8 +97,10 @@ function loadConfig() {
     if (!raw) return;
     const saved = JSON.parse(raw);
     state.feishuEndpoint = typeof saved.feishuEndpoint === "string" ? saved.feishuEndpoint : "";
+    state.aiReviewEndpoint = typeof saved.aiReviewEndpoint === "string" ? saved.aiReviewEndpoint : "";
   } catch {
     state.feishuEndpoint = "";
+    state.aiReviewEndpoint = "";
   }
 }
 
@@ -221,6 +230,29 @@ function renderReport(report) {
   $("#suggestionBox").textContent = report.suggestions;
 }
 
+function normalizeAiReport(payload) {
+  const references = Array.isArray(payload.references) ? payload.references : [];
+  const findings = Array.isArray(payload.findings) && payload.findings.length
+    ? payload.findings
+    : ["AI 没有返回明确审核意见，请人工复核设计稿。"];
+  const suggestions = Array.isArray(payload.suggestions)
+    ? payload.suggestions.join("\n")
+    : String(payload.suggestions || "请根据审核意见调整设计稿。");
+  const score = Number.isFinite(Number(payload.score)) ? Number(payload.score) : 72;
+  return {
+    score: Math.max(0, Math.min(100, Math.round(score))),
+    result: payload.result === "pass" ? "pass" : "adjust",
+    findings,
+    suggestions,
+    matches: references.map((reference) => ({
+      rule: {
+        leader: reference.leader || reference.name || "知识库",
+        content: reference.content || reference.opinion || "",
+      },
+    })).filter(({ rule }) => rule.content),
+  };
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -330,6 +362,12 @@ function loadGeneratedKnowledge() {
 
 function setFeishuStatus(text, status = "idle") {
   const node = $("#feishuSyncStatus");
+  node.textContent = text;
+  node.dataset.status = status;
+}
+
+function setAiReviewStatus(text, status = "idle") {
+  const node = $("#aiReviewStatus");
   node.textContent = text;
   node.dataset.status = status;
 }
@@ -477,6 +515,24 @@ function closeFeishuModal() {
   hideElement("#feishuModal");
 }
 
+function openAiModal() {
+  $("#aiReviewEndpoint").value = state.aiReviewEndpoint;
+  showElement("#aiModal");
+  window.setTimeout(() => $("#aiReviewEndpoint").focus(), 40);
+}
+
+function closeAiModal() {
+  hideElement("#aiModal");
+}
+
+function updateAiStatus() {
+  if (state.aiReviewEndpoint) {
+    setAiReviewStatus("已配置视觉 AI 接口，审核时会读取上传图片并结合知识库判断。", "success");
+    return;
+  }
+  setAiReviewStatus("未配置视觉 AI 接口时，将使用本地知识库文字匹配。", "idle");
+}
+
 async function syncFeishuRules() {
   const endpoint = state.feishuEndpoint.trim();
   if (!endpoint) {
@@ -521,7 +577,29 @@ async function syncFeishuRules() {
   }
 }
 
-function startAnalysis(formData) {
+async function requestAiReport(formData) {
+  const payload = {
+    brief: formData.brief,
+    images: state.draftImages.slice(0, 4),
+    rules: state.rules.map((rule) => ({
+      leader: getRuleLeader(rule),
+      content: getRuleContent(rule),
+    })),
+  };
+  const response = await fetch(state.aiReviewEndpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`AI 接口返回 HTTP ${response.status}`);
+  return normalizeAiReport(await response.json());
+}
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function startAnalysis(formData) {
   if (state.analysisTimer) {
     window.clearTimeout(state.analysisTimer);
     state.analysisTimer = null;
@@ -530,8 +608,8 @@ function startAnalysis(formData) {
   showElement("#analysisPanel");
 
   const steps = [
-    "正在读取项目背景与知识库意见...",
-    "正在匹配领导历史反馈...",
+    "正在读取项目背景、设计稿图片与知识库意见...",
+    "正在识别画面信息、文案层级和视觉风险...",
     "正在整理可执行的修改建议...",
   ];
   let index = 0;
@@ -544,10 +622,12 @@ function startAnalysis(formData) {
     $("#analysisText").textContent = steps[index];
   }, 420);
 
-  state.analysisTimer = window.setTimeout(() => {
+  try {
+    const report = state.aiReviewEndpoint
+      ? await requestAiReport(formData)
+      : await wait(1350).then(() => buildReport(formData));
     window.clearInterval(state.analysisStepTimer);
     state.analysisStepTimer = null;
-    const report = buildReport(formData);
     renderReport(report);
     state.history.unshift({
       ...formData,
@@ -560,7 +640,12 @@ function startAnalysis(formData) {
     saveState();
     refresh();
     state.analysisTimer = null;
-  }, 1350);
+  } catch (error) {
+    window.clearInterval(state.analysisStepTimer);
+    state.analysisStepTimer = null;
+    hideElement("#analysisPanel");
+    setAiReviewStatus(`AI 审核失败：${error.message}。当前可检查接口地址或临时清空配置改用本地匹配。`, "error");
+  }
 }
 
 function bindEvents() {
@@ -692,6 +777,26 @@ function bindEvents() {
     syncFeishuRules();
   });
 
+  $("#openAiModalBtn").addEventListener("click", openAiModal);
+  $("#closeAiModalBtn").addEventListener("click", closeAiModal);
+  $("#aiModal").addEventListener("click", (event) => {
+    if (event.target.id === "aiModal") closeAiModal();
+  });
+  $("#aiForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    state.aiReviewEndpoint = $("#aiReviewEndpoint").value.trim();
+    saveConfig();
+    updateAiStatus();
+    closeAiModal();
+  });
+  $("#clearAiEndpointBtn").addEventListener("click", () => {
+    state.aiReviewEndpoint = "";
+    $("#aiReviewEndpoint").value = "";
+    saveConfig();
+    updateAiStatus();
+    closeAiModal();
+  });
+
   $("#copySuggestionBtn").addEventListener("click", async () => {
     const text = $("#suggestionBox").textContent.trim();
     if (!text) {
@@ -722,5 +827,6 @@ loadState();
 loadConfig();
 loadGeneratedKnowledge();
 refresh();
+updateAiStatus();
 setReviewReady(false);
 switchView("knowledgeView");
