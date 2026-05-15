@@ -1,4 +1,4 @@
-const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
+const DEFAULT_RESPONSES_URL = "https://api.openai.com/v1/responses";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +61,7 @@ async function reviewDesign(payload, env) {
     })),
   ];
 
-  const response = await fetch(OPENAI_RESPONSES_URL, {
+  const response = await fetch(getResponsesUrl(env), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${env.OPENAI_API_KEY}`,
@@ -114,6 +114,13 @@ function parseResponseText(data) {
     .replace(/```$/i, "")
     .trim();
   return JSON.parse(cleaned);
+}
+
+function getResponsesUrl(env) {
+  if (env.OPENAI_RESPONSES_URL) return env.OPENAI_RESPONSES_URL;
+  const baseUrl = env.OPENAI_BASE_URL;
+  if (!baseUrl) return DEFAULT_RESPONSES_URL;
+  return `${baseUrl.replace(/\/$/, "")}/responses`;
 }
 
 function collectOutputText(data) {

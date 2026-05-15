@@ -603,8 +603,11 @@ async function requestAiReport(formData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error(`AI 接口返回 HTTP ${response.status}`);
-  return normalizeAiReport(await response.json());
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.message || `AI 接口返回 HTTP ${response.status}`);
+  }
+  return normalizeAiReport(data);
 }
 
 function wait(ms) {
