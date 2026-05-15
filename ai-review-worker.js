@@ -39,7 +39,7 @@ async function reviewDesign(payload, env) {
     throw new Error("No design images provided");
   }
 
-  const model = env.OPENAI_MODEL || "gpt-4.1-mini";
+  const model = env.OPENAI_MODEL || "gpt-4.1";
   const userContent = [
     {
       type: "input_text",
@@ -49,7 +49,9 @@ async function reviewDesign(payload, env) {
         "知识库意见：",
         JSON.stringify(rules, null, 2),
         "",
-        "请结合上传图片和知识库意见审核设计稿。重点判断：视觉颜色是否单调、文案与模块是否呼应、IP/任务形象是否需要品牌符号补充、品牌露出、信息层级、促销利益点、合规风险。",
+        "请结合上传图片和知识库意见审核设计稿。不要只做关键词匹配，要基于画面证据判断是否命中每条历史意见。",
+        "重点判断：视觉颜色是否单调、文案与模块是否呼应、IP/任务形象是否需要品牌符号补充、品牌露出、信息层级、促销利益点、合规风险。",
+        "每条 findings 必须包含：观察到的画面证据 + 对应风险 + 建议修改方式。",
       ].join("\n"),
     },
     ...images.map((image) => ({
@@ -78,7 +80,9 @@ async function reviewDesign(payload, env) {
                 "必须优先参考知识库里的领导意见，但不要机械关键词匹配，要根据图片实际画面判断是否命中。",
                 "只返回 JSON，不要返回 Markdown。",
                 "JSON 字段：result pass 或 adjust；score 0-100；findings 字符串数组；suggestions 字符串数组；references 数组，每项含 leader 和 content。",
-                "findings 要具体指出画面问题和修改方向。references 只放真正相关的知识库意见。",
+                "findings 要具体指出画面问题和修改方向，避免空泛建议。",
+                "如果知识库意见命中，请说明为什么命中；如果没有命中，不要硬套。",
+                "references 只放真正相关的知识库意见。",
               ].join("\n"),
             },
           ],

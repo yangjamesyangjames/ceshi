@@ -101,12 +101,12 @@ function loadConfig() {
     }
     const saved = JSON.parse(raw);
     state.feishuEndpoint = typeof saved.feishuEndpoint === "string" ? saved.feishuEndpoint : "";
-    state.aiReviewEndpoint = typeof saved.aiReviewEndpoint === "string"
+    state.aiReviewEndpoint = typeof saved.aiReviewEndpoint === "string" && saved.aiReviewEndpoint.trim()
       ? saved.aiReviewEndpoint
       : DEFAULT_AI_REVIEW_ENDPOINT;
   } catch {
     state.feishuEndpoint = "";
-    state.aiReviewEndpoint = "";
+    state.aiReviewEndpoint = DEFAULT_AI_REVIEW_ENDPOINT;
   }
 }
 
@@ -205,12 +205,17 @@ function buildReport(formData) {
     "3. 如果本次审核发现新判断标准，把结论补充进知识库，下一次审核会自动复用。",
   ];
 
-  return { matches, score, result, findings, suggestions: suggestions.join("\n") };
+  return { matches, score, result, findings, suggestions: suggestions.join("\n"), source: "local" };
 }
 
 function renderReport(report) {
   hideElement("#analysisPanel");
   showElement("#reportPanel");
+  const isAiReport = report.source === "ai";
+  $("#reportTitle").textContent = isAiReport ? "视觉 AI 审核报告" : "本地匹配报告";
+  $("#reportDescription").textContent = isAiReport
+    ? "已读取上传图片，并结合知识库意见生成。"
+    : "未调用视觉模型，仅根据输入目标和知识库文字匹配。";
   $("#scoreText").textContent = `${report.score}%`;
   $("#scoreBar").value = report.score;
   const riskLevel = $("#riskLevel");
@@ -250,6 +255,7 @@ function normalizeAiReport(payload) {
     result: payload.result === "pass" ? "pass" : "adjust",
     findings,
     suggestions,
+    source: "ai",
     matches: references.map((reference) => ({
       rule: {
         leader: reference.leader || reference.name || "知识库",
@@ -533,7 +539,7 @@ function closeAiModal() {
 
 function updateAiStatus() {
   if (state.aiReviewEndpoint) {
-    setAiReviewStatus("已配置视觉 AI 接口，审核时会读取上传图片并结合知识库判断。", "success");
+    setAiReviewStatus("视觉 AI 已开启：审核会读取上传图片，并结合知识库判断。", "success");
     return;
   }
   setAiReviewStatus("未配置视觉 AI 接口时，将使用本地知识库文字匹配。", "idle");

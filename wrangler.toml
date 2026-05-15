@@ -5,4 +5,4 @@ workers_dev = true
 preview_urls = false
 
 [vars]
-OPENAI_MODEL = "gpt-4.1-mini"
+OPENAI_MODEL = "gpt-4.1"
