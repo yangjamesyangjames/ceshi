@@ -1,0 +1,8 @@
+name = "design-review-ai"
+main = "ai-review-worker.js"
+compatibility_date = "2026-05-14"
+workers_dev = true
+preview_urls = false
+
+[vars]
+OPENAI_MODEL = "gpt-4.1-mini"

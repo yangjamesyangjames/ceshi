@@ -1,5 +1,6 @@
 const STORAGE_KEY = "design-review-assistant-v1";
 const CONFIG_KEY = "design-review-assistant-config-v1";
+const DEFAULT_AI_REVIEW_ENDPOINT = "https://design-review-ai.yangjames-design-review.workers.dev";
 
 const state = {
   rules: [],
@@ -94,10 +95,15 @@ function loadState() {
 function loadConfig() {
   try {
     const raw = window.localStorage.getItem(CONFIG_KEY);
-    if (!raw) return;
+    if (!raw) {
+      state.aiReviewEndpoint = DEFAULT_AI_REVIEW_ENDPOINT;
+      return;
+    }
     const saved = JSON.parse(raw);
     state.feishuEndpoint = typeof saved.feishuEndpoint === "string" ? saved.feishuEndpoint : "";
-    state.aiReviewEndpoint = typeof saved.aiReviewEndpoint === "string" ? saved.aiReviewEndpoint : "";
+    state.aiReviewEndpoint = typeof saved.aiReviewEndpoint === "string"
+      ? saved.aiReviewEndpoint
+      : DEFAULT_AI_REVIEW_ENDPOINT;
   } catch {
     state.feishuEndpoint = "";
     state.aiReviewEndpoint = "";
