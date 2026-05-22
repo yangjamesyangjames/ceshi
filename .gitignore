@@ -1,1 +1,7 @@
 .wrangler/
+.DS_Store
+outputs/
+*.ppt
+*.pptx
+*_本地预览.html
+ppt-preview/

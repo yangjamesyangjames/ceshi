@@ -449,6 +449,7 @@ function resetReview() {
   $("#reviewForm").reset();
   state.draftImages = [];
   renderImages($("#draftPreview"), state.draftImages);
+  updateDraftUploadDisplay(false);
   setReviewReady(false);
   setUploadState($("#draftImages"), "idle");
   hideElement("#analysisPanel");
@@ -471,6 +472,51 @@ function setUploadState(input, stateName) {
   if (stateName === "uploading") label.textContent = "上传中...";
   if (stateName === "uploaded") label.textContent = "上传完成";
   if (stateName === "idle") label.textContent = "上传设计稿";
+}
+
+function updateDraftUploadDisplay(hasImages = state.draftImages.length > 0) {
+  $("#draftUploadZone").classList.toggle("is-replaced", hasImages);
+  $("#draftPreview").classList.toggle("is-hidden", !hasImages);
+}
+
+async function processDraftFiles(fileList) {
+  if (!fileList || !fileList.length) return;
+  const input = $("#draftImages");
+  setReviewReady(false);
+  updateDraftUploadDisplay(false);
+  setUploadState(input, "uploading");
+  state.draftImages = await readImages(fileList);
+  renderImages($("#draftPreview"), state.draftImages);
+  bounceUploadZone(input);
+  if (state.uploadTimer) window.clearTimeout(state.uploadTimer);
+  state.uploadTimer = window.setTimeout(() => {
+    const hasImages = state.draftImages.length > 0;
+    setUploadState(input, hasImages ? "uploaded" : "idle");
+    updateDraftUploadDisplay(hasImages);
+    setReviewReady(hasImages);
+  }, 650);
+}
+
+function openDraftFilePicker() {
+  const input = $("#draftImages");
+  input.value = "";
+  input.click();
+}
+
+function bindDraftDropTarget(target) {
+  ["dragenter", "dragover"].forEach((eventName) => {
+    target.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      target.classList.add("is-dragging");
+    });
+  });
+  ["dragleave", "drop"].forEach((eventName) => {
+    target.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      target.classList.remove("is-dragging");
+    });
+  });
+  target.addEventListener("drop", (event) => processDraftFiles(event.dataTransfer.files));
 }
 
 function refresh() {
@@ -669,17 +715,18 @@ function bindEvents() {
     button.addEventListener("click", () => switchView(button.dataset.viewTarget)),
   );
 
-  $("#draftImages").addEventListener("change", async (event) => {
-    setReviewReady(false);
-    setUploadState(event.target, "uploading");
-    state.draftImages = await readImages(event.target.files);
-    renderImages($("#draftPreview"), state.draftImages);
-    bounceUploadZone(event.target);
-    if (state.uploadTimer) window.clearTimeout(state.uploadTimer);
-    state.uploadTimer = window.setTimeout(() => {
-      setUploadState(event.target, state.draftImages.length ? "uploaded" : "idle");
-      setReviewReady(state.draftImages.length > 0);
-    }, 650);
+  $("#draftImages").addEventListener("change", (event) => processDraftFiles(event.target.files));
+
+  const draftUploadZone = $("#draftUploadZone");
+  const draftPreview = $("#draftPreview");
+  bindDraftDropTarget(draftUploadZone);
+  bindDraftDropTarget(draftPreview);
+  draftPreview.addEventListener("click", openDraftFilePicker);
+  draftPreview.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openDraftFilePicker();
+    }
   });
 
   $("#ruleImages").addEventListener("change", async (event) => {

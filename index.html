@@ -11,13 +11,20 @@
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-left">
-            <div class="brand-mark"><span>审</span></div>
+            <div class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img">
+                <path d="M8 4.75h8a2 2 0 0 1 2 2v12.5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6.75a2 2 0 0 1 2-2Z" />
+                <path d="M9.5 3.5h5a1.5 1.5 0 0 1 1.5 1.5v1H8V5a1.5 1.5 0 0 1 1.5-1.5Z" />
+                <path d="m9.25 13 2 2.1 4-5.1" />
+              </svg>
+            </div>
             <div>
               <h1>设计稿审核</h1>
               <p>意见知识库与 AI 审核台</p>
             </div>
           </div>
           <div class="brand-actions">
+            <button class="ghost-button small-button" id="openAiModalBtn" type="button">配置 AI</button>
             <button class="summary-icon-button" id="toggleHistoryBtn" type="button" aria-label="查看审核历史">
               <span class="history-icon" aria-hidden="true"></span>
             </button>
@@ -40,21 +47,20 @@
             <form class="review-form" id="reviewForm">
               <div class="review-form-heading">
                 <h3>上传设计稿</h3>
-                <button class="ghost-button small-button" id="openAiModalBtn" type="button">配置 AI</button>
               </div>
 
               <p class="sync-status" id="aiReviewStatus">未配置视觉 AI 接口时，将使用本地知识库文字匹配。</p>
 
               <textarea id="brief" rows="6" placeholder="输入目标：如重点检查品牌露出、促销利益点、文案层级、合规风险。"></textarea>
 
-              <label class="upload-zone" for="draftImages">
+              <label class="upload-zone" for="draftImages" id="draftUploadZone">
                 <input id="draftImages" type="file" accept="image/*" multiple />
                 <span class="upload-icon" aria-hidden="true"></span>
                 <span data-upload-label>上传设计稿</span>
                 <small>支持多张 JPG / PNG，图片仅保存在本机浏览器</small>
               </label>
 
-              <div class="image-strip" id="draftPreview"></div>
+              <div class="image-strip draft-preview is-hidden" id="draftPreview" role="button" tabindex="0" aria-label="重新上传设计稿"></div>
 
               <button class="primary-button full" id="reviewSubmitBtn" type="submit" disabled>审核</button>
             </form>
